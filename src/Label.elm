@@ -93,7 +93,12 @@ imagesWithLabels images =
 
 jsonLineFor : Image -> Label -> String
 jsonLineFor image label =
-    "{\"source-ref\":\"" ++ imageUrl image.domain ++ "\", \"class\":\"" ++ String.fromInt label.index ++ "\"}\n"
+    "{\"source-ref\":\"" ++ imageUrl image.domain ++ "\", \"class\":\"" ++ String.fromInt label.index ++ "\", \"class-metadata\": {\"class-name\": \"" ++ label.name ++ "\"}}\n"
+
+
+
+-- {"source-ref":"s3://image/filename1.jpg", "class":"0"}
+-- {"source-ref":"s3://image/filename2.jpg", "class":"1", "class-metadata": {"class-name": "cat", "type" : "groundtruth/image-classification"}}
 
 
 jsonLabels : List Image -> List String
