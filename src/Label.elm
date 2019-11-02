@@ -1,13 +1,14 @@
 module Label exposing (Domain, main)
 
 {-| Notes and Items to do
+
+[ ] Where do I get my input?
+
 [ ] Configure Labels
 [ ] Show/Hide Label Configuration section
 [ ] Add a list for labels containing the text labels
 [ ] Add logic to set Label.index on any update of the list
 [-] OOS: Add a color selector
-
-[] Bug: Need to cycle through having no label
 
 [] Need to determine if I am manipulating files directly (as orig thought) or just labels pointing to S3 images
 
@@ -19,19 +20,22 @@ Approach 2: Manipulating labels, referencing only S3, generating .lst file
 Approach 3: Manipulating labels, referencing only S3, generating a script to be run, or a command to a backend server
 
 [x] Show/Hide JSON Lines output
+[x] Bug: Need to cycle through having no label
 
 -}
+
+-- import Bool.Extra
 
 import Browser
 import Html exposing (Html, button, div, img, input, pre, span, text, textarea)
 import Html.Attributes exposing (cols, height, rows, src, type_, value, width)
 import Html.Events exposing (on, onClick, onInput)
 import List exposing (map)
+import List.Extra as LE exposing (zip)
 
 
 
--- import Bool.Extra
--- import List.Extra exposing (zip)
+-- import List.Extra as LE exposing ((!!))
 
 
 defaultHeight : Int
@@ -157,7 +161,7 @@ init : Model
 init =
     let
         categoryText =
-            "Category1\nCategory2"
+            "Bad\nOk\nGood"
     in
     { flash = ""
     , labels = makeLabels (categoriesFrom categoryText)
@@ -264,16 +268,58 @@ labelText label =
 
 
 nextLabel : List Label -> Maybe Label -> Maybe Label
-nextLabel ls ml =
-    case ml of
-        Just l ->
-            getWanted ls l
+nextLabel list maybeItem =
+    let
+        getAt2 : List a -> Int -> Maybe a
+        getAt2 l i =
+            LE.getAt i l
+
+        nextItem l item =
+            list
+                |> LE.elemIndex item
+                |> Maybe.map ((+) 1)
+                |> Maybe.andThen (getAt2 l)
+    in
+    case ( list, maybeItem ) of
+        ( l, Nothing ) ->
+            LE.getAt 0 l
+
+        ( l, Just a ) ->
+            nextItem l a
+
+
+
+-- cycleWithBlank ls ml
+
+
+cycleWithBlank : List a -> a -> Maybe a
+cycleWithBlank list a =
+    let
+        getAt2 : List a -> Int -> Maybe a
+        getAt2 l i =
+            LE.getAt i l
+
+        -- getNext : a -> List a -> Maybe a
+        getNext item l =
+            list
+                |> LE.elemIndex item
+                |> Maybe.map ((+) 1)
+                |> Maybe.andThen (getAt2 l)
+    in
+    case getNext a list of
+        Just next ->
+            Just next
 
         Nothing ->
-            List.head ls
+            LE.getAt 0 list
 
 
 
+-- case ml of
+--     Just l ->
+--         cycleWithBlank ls l
+--     Nothing ->
+--         List.head ls
 -- viewInput : String -> String -> (String -> msg) -> Html msg
 -- viewInput p v toMsg =
 --     input [ type_ "text", placeholder p, value v, onInput toMsg ] []
@@ -421,37 +467,25 @@ makeImage d =
 
 
 -- helper
-
-
-getWanted : List a -> a -> Maybe a
-getWanted list currentElement =
-    let
-        findNextInList l =
-            case l of
-                [] ->
-                    Nothing
-
-                x :: [] ->
-                    if x == currentElement then
-                        List.head list
-
-                    else
-                        Nothing
-
-                x :: y :: rest ->
-                    if x == currentElement then
-                        Just y
-
-                    else
-                        findNextInList (y :: rest)
-    in
-    findNextInList list
-
-
-
--- dumpJsonLabelsAsText : List Image -> String
--- dumpJsonLabelsAsText images =
---     jsonLabels images |> String.concat
+-- getWanted : List a -> a -> Maybe a
+-- getWanted list currentElement =
+--     let
+--         findNextInList l =
+--             case l of
+--                 [] ->
+--                     Nothing
+--                 x :: [] ->
+--                     if x == currentElement then
+--                         List.head list
+--                     else
+--                         Nothing
+--                 x :: y :: rest ->
+--                     if x == currentElement then
+--                         Just y
+--                     else
+--                         findNextInList (y :: rest)
+--     in
+--     findNextInList list
 
 
 dumpJsonLabelsAsPre : List Image -> Html Msg
