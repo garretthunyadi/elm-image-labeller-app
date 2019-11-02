@@ -1,14 +1,42 @@
 module Label exposing (Domain, main)
 
+{-| Notes and Items to do
+[ ] Configure Labels
+[ ] Show/Hide Label Configuration section
+[ ] Add a list for labels containing the text labels
+[ ] Add logic to set Label.index on any update of the list
+[-] OOS: Add a color selector
+
+[] Bug: Need to cycle through having no label
+
+[] Need to determine if I am manipulating files directly (as orig thought) or just labels pointing to S3 images
+
+  - manipulating files is more general, but requires syncing with S3 and manipulating files locally
+  - maintaining labels is more lightweight and perferred if I can make the downstream workflow work
+
+Approach 1: Manipulating labels, referencing only S3, generating JSON lines only
+Approach 2: Manipulating labels, referencing only S3, generating .lst file
+Approach 3: Manipulating labels, referencing only S3, generating a script to be run, or a command to a backend server
+
+[x] Show/Hide JSON Lines output
+
+-}
+
 import Browser
-import Html exposing (Html, button, div, img, text)
-import Html.Attributes exposing (height, src, width)
-import Html.Events exposing (onClick)
+import Html exposing (Html, button, div, img, input, pre, span, text, textarea)
+import Html.Attributes exposing (cols, height, rows, src, type_, value, width)
+import Html.Events exposing (on, onClick, onInput)
 import List exposing (map)
 
 
 
+-- import Bool.Extra
 -- import List.Extra exposing (zip)
+
+
+defaultHeight : Int
+defaultHeight =
+    80
 
 
 main : Program () Model Msg
@@ -16,9 +44,8 @@ main =
     Browser.sandbox { init = init, update = update, view = view }
 
 
-defaultHeight : Int
-defaultHeight =
-    80
+
+-- model
 
 
 type alias Domain =
@@ -31,35 +58,109 @@ type alias Label =
     }
 
 
+makeLabels : List String -> List Label
+makeLabels strings =
+    List.map2 (\index name -> { index = index, name = name }) (List.range 0 (List.length strings)) strings
+
+
+
+-- labels : List Image -> List Label
+-- labels images =
+--     let
+--         maybeLabel : Image -> Maybe Label
+--         maybeLabel image =
+--             Maybe.map
+--                 (\l -> l)
+--                 image.label
+--     in
+--     List.filterMap maybeLabel images
+
+
+imagesWithLabels : List Image -> List ( Image, Label )
+imagesWithLabels images =
+    let
+        maybeLabel : Image -> Maybe ( Image, Label )
+        maybeLabel image =
+            case image.label of
+                Just l ->
+                    Just ( image, l )
+
+                Nothing ->
+                    Nothing
+    in
+    List.filterMap maybeLabel images
+
+
+jsonLineFor : Image -> Label -> String
+jsonLineFor image label =
+    "{\"source-ref\":\"" ++ imageUrl image.domain ++ "\", \"class\":\"" ++ String.fromInt label.index ++ "\"}\n"
+
+
+jsonLabels : List Image -> List String
+jsonLabels images =
+    map (\( i, l ) -> jsonLineFor i l) (imagesWithLabels images)
+
+
+
+-- map (\i l -> "") (imagesWithLabels images)
+-- [ "aaa", "bbb" ]
+-- map jsonLineFor (imagesWithLabels images)
+-- map (\( i, l ) -> "") (imagesWithLabels images)
+-- let
+--     maybeJsonLabel : Image -> Maybe String
+--     maybeJsonLabel image =
+--         Maybe.map
+--             (\l -> "{\"source-ref\":\"" ++ imageUrl image.domain ++ "\", \"class\":\"" ++ String.fromInt l.index ++ "\"}\n")
+--             image.label
+-- in
+-- List.filterMap maybeJsonLabel images
+-- map (\l -> "{\"source-ref\":\"" ++ imageUrl image.domain ++ "\", \"class\":\"" ++ String.fromInt l.index ++ "\"}\n") (labels images)
+
+
 type alias Image =
     { domain : Domain
     , label : Maybe Label
     }
 
 
+imageUrl : Domain -> String
+imageUrl domain =
+    "https://eiginsites.s3.amazonaws.com/sites/" ++ domain ++ "/screenshots_600x600.jpeg"
 
--- type alias LabelledImage =
---     { image : Image
---     , label : Label
---     }
+
+
+-- s3Url : Domain -> String
+-- s3Url domain =
+--     -- TODO incorrect
+--     "s3://sites/" ++ domain ++ "/screenshots_600x600.jpeg"
 
 
 type alias Model =
     { flash : String
-    , jsonLabels : String
+
+    -- , jsonLabels : List String
     , labels : List Label
     , imageDims : Int
     , images : List Image
+    , showLabelConfig : Bool
+    , showJsonLines : Bool
+    , rawCategoryText : String
     }
 
 
 init : Model
 init =
+    let
+        categoryText =
+            "Category1\nCategory2"
+    in
     { flash = ""
-    , jsonLabels = ""
-    , labels = makeLabels [ "Category1", "Category2" ]
+    , labels = makeLabels (categoriesFrom categoryText)
     , imageDims = defaultHeight
     , images = someImages
+    , showLabelConfig = True
+    , showJsonLines = True
+    , rawCategoryText = categoryText
     }
 
 
@@ -68,6 +169,13 @@ type Msg
     | Decrement
     | Reset
     | LabelChange Image
+    | ToggleLabelConfigSection
+    | ToggleJsonLinesSection
+    | UpdateCategoriesFromCategoryTextArea String
+
+
+
+-- controller
 
 
 update : Msg -> Model -> Model
@@ -97,8 +205,47 @@ update msg model =
             { model
                 | flash = image.domain ++ ": " ++ labelText image.label
                 , images = updatedImages
-                , jsonLabels = dumpJsonLabels model.images
+
+                -- , jsonLabels = jsonLabels model.images
             }
+
+        ToggleJsonLinesSection ->
+            let
+                newVal =
+                    not model.showJsonLines
+            in
+            { model | showJsonLines = newVal }
+
+        ToggleLabelConfigSection ->
+            let
+                newVal =
+                    not model.showLabelConfig
+            in
+            { model | showLabelConfig = newVal }
+
+        UpdateCategoriesFromCategoryTextArea categoryText ->
+            let
+                cats =
+                    categoriesFrom categoryText
+            in
+            { model | flash = String.concat cats, labels = makeLabels cats, rawCategoryText = categoryText }
+
+
+
+-- case categoriesFrom categoryText of
+-- Just categories ->
+--     { model | labels = makeLabels categories }
+-- Nothing ->
+--     { model | flash = "INVALID CATEGORY TEXT" }
+
+
+categoriesFrom : String -> List String
+categoriesFrom text =
+    String.split "\n" text
+
+
+
+-- view
 
 
 labelText : Maybe Label -> String
@@ -134,9 +281,12 @@ view model =
         , button [ onClick Decrement ] [ text "-" ]
         , button [ onClick Increment ] [ text "+" ]
         , button [ onClick Reset ] [ text "reset" ]
-        , div [] []
+
+        -- , div [] []
         , text model.flash
         , div [] []
+        , maybeShowLabelConfig model
+        , Html.hr [] []
 
         -- , img [src (imageUrl "1107savoline.com"), width model.imageDims, height model.imageDims] []
         -- , viewImages model.imageDims model.imageDims model.domains
@@ -145,13 +295,62 @@ view model =
 
         -- , renderImageList model.imageDims model.imageDims ["aaa", "Bbb"]
         , div [] []
-        , text model.jsonLabels
+        , maybeShowJsonLabels model
         ]
 
 
-imageUrl : Domain -> String
-imageUrl domain =
-    "https://eiginsites.s3.amazonaws.com/sites/" ++ domain ++ "/screenshots_600x600.jpeg"
+maybeShowJsonLabels : Model -> Html Msg
+maybeShowJsonLabels model =
+    if model.showJsonLines then
+        div []
+            [ button
+                [ onClick ToggleJsonLinesSection ]
+                [ text "Hide Json" ]
+            , dumpJsonLabelsAsPre model.images
+            ]
+
+    else
+        div []
+            [ button [ onClick ToggleJsonLinesSection ] [ text "Show Json" ]
+            ]
+
+
+maybeShowLabelConfig : Model -> Html Msg
+maybeShowLabelConfig model =
+    if model.showLabelConfig then
+        div []
+            [ button
+                [ onClick ToggleLabelConfigSection ]
+                [ text "Hide Label Configuration" ]
+            , viewLabelConfig model
+            ]
+
+    else
+        div []
+            [ button [ onClick ToggleLabelConfigSection ] [ text "Label Configuration" ]
+            ]
+
+
+viewLabelConfig : Model -> Html Msg
+viewLabelConfig model =
+    -- div [] (map (\l -> viewLabelEditor l) model.labels)
+    -- div [] (map (\l -> text l.name) ls)
+    div []
+        [ textarea [ cols 40, rows 6, value model.rawCategoryText, onInput UpdateCategoriesFromCategoryTextArea ] []
+        ]
+
+
+
+-- viewLabelEditor : Label -> Html Msg
+-- viewLabelEditor label =
+--     div []
+--         [ -- viewInput label.name label.name (onInput (UpdateLabelsWithLabel label))
+--         --   viewInput label.name UpdateLabelWithName
+--             textarea (map name la
+--         ]
+-- viewInput : String -> (String -> msg) -> Html msg
+-- viewInput v toMsg =
+--     input [ type_ "text", value v, onInput toMsg ] []
 
 
 viewImage : Int -> Int -> Image -> Html Msg
@@ -168,6 +367,10 @@ viewImage w h image =
 viewImages : Int -> Int -> List Image -> List (Html Msg)
 viewImages width height images =
     map (viewImage width height) images
+
+
+
+-- data
 
 
 someDomains : List String
@@ -240,32 +443,13 @@ getWanted list currentElement =
     findNextInList list
 
 
-dumpJsonLabels : List Image -> String
-dumpJsonLabels images =
-    -- filterMap : (a -> Maybe b) -> List a -> List b
-    -- concat : List String -> String
-    List.filterMap maybeJsonLabel images |> String.concat
+
+-- dumpJsonLabelsAsText : List Image -> String
+-- dumpJsonLabelsAsText images =
+--     jsonLabels images |> String.concat
 
 
-maybeJsonLabel : Image -> Maybe String
-maybeJsonLabel image =
-    Maybe.map
-        (\l ->
-            "{\"source-ref\":\"s3://image/filename1.jpg\", \"class\":\"" ++ String.fromInt l.index ++ "\"}\n"
-        )
-        image.label
-
-
-
--- case image.label of
---     Just l ->
---         Just ("{\"source-ref\":\"s3://image/filename1.jpg\", \"class\":\"" ++ String.fromInt l.index ++ "\"}\n")
---     Nothing ->
---         Nothing
--- {"source-ref":"s3://image/filename1.jpg", "class":"0"}
--- {"source-ref":"s3://image/filename2.jpg", "class":"1", "class-metadata": {"class-name": "cat", "type" : "groundtruth/image-classification"}}
-
-
-makeLabels : List String -> List Label
-makeLabels strings =
-    List.map2 (\index name -> { index = index, name = name }) (List.range 0 (List.length strings)) strings
+dumpJsonLabelsAsPre : List Image -> Html Msg
+dumpJsonLabelsAsPre images =
+    pre []
+        [ text (jsonLabels images |> String.concat) ]
