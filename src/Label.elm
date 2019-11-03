@@ -45,7 +45,7 @@ import List.Extra as LE
 
 defaultHeight : Int
 defaultHeight =
-    80
+    300
 
 
 main : Program () Model Msg
@@ -152,7 +152,14 @@ type Msg
 
 
 
+----------------------------------------------------------------------------------------------------------------------
+----------------------------------------------------------------------------------------------------------------------
+----------------------------------------------------------------------------------------------------------------------
+----------------------------------------------------------------------------------------------------------------------
 -- controller
+----------------------------------------------------------------------------------------------------------------------
+----------------------------------------------------------------------------------------------------------------------
+----------------------------------------------------------------------------------------------------------------------
 
 
 update : Msg -> Model -> Model
@@ -254,7 +261,26 @@ nextLabel list maybeItem =
 
 
 
+----------------------------------------------------------------------------------------------------------------------
+----------------------------------------------------------------------------------------------------------------------
+----------------------------------------------------------------------------------------------------------------------
 -- View
+--
+--  V                  V
+--   V                V
+--    V              V
+--     v            v
+--      v          v
+--       v        v
+--        v      v
+--         v    v
+--          v  v
+--           vv
+--
+--
+----------------------------------------------------------------------------------------------------------------------
+----------------------------------------------------------------------------------------------------------------------
+----------------------------------------------------------------------------------------------------------------------
 
 
 view : Model -> Html Msg
@@ -299,48 +325,77 @@ maybeShowJsonLabels model =
 
 maybeShowLabelConfig : Model -> Html Msg
 maybeShowLabelConfig model =
+    let
+        labelLegendFor : Label -> Html Msg
+        labelLegendFor label =
+            span
+                [ class ("label-" ++ String.fromInt label.index)
+                ]
+                [ text label.name ]
+
+        showLabelLegend : Html Msg
+        showLabelLegend =
+            span [] (List.map labelLegendFor model.labels)
+
+        --     List.map
+        --     labelLegendFor
+        --     model.labels
+        -- [ span [ class "label-0" ] [ text "label 0" ]
+        -- ]
+        viewLabelConfig : Html Msg
+        viewLabelConfig =
+            div []
+                [ textarea [ cols 30, rows 6, value model.rawCategoryText, onInput UpdateCategoriesFromCategoryTextArea ] []
+                ]
+    in
     if model.showLabelConfig then
         div []
             [ button
                 [ onClick ToggleLabelConfigSection ]
                 [ text "Hide Label Configuration" ]
-            , showLabelLegend model
-            , viewLabelConfig model
+            , showLabelLegend
+            , viewLabelConfig
             ]
 
     else
         div []
             [ button [ onClick ToggleLabelConfigSection ] [ text "Label Configuration" ]
-            , showLabelLegend model
+            , showLabelLegend
             ]
-
-
-showLabelLegend : Model -> Html Msg
-showLabelLegend model =
-    span []
-        [ span [ class "label-0" ] [ text "label 0" ]
-        ]
-
-
-viewLabelConfig : Model -> Html Msg
-viewLabelConfig model =
-    -- div [] (map (\l -> viewLabelEditor l) model.labels)
-    -- div [] (map (\l -> text l.name) ls)
-    div []
-        [ textarea [ cols 30, rows 6, value model.rawCategoryText, onInput UpdateCategoriesFromCategoryTextArea ] []
-        ]
 
 
 viewImage : Int -> Int -> Image -> Html Msg
 viewImage w h image =
-    img
-        [ src (imageUrl image.domain)
-        , width w
+    let
+        viewLabel : Maybe Label -> Html Msg
+        viewLabel mLabel =
+            case mLabel of
+                Just l ->
+                    span
+                        [ class ("label-" ++ String.fromInt l.index)
+                        ]
+                        [ text l.name ]
+
+                Nothing ->
+                    span [] []
+    in
+    span
+        [ width w
         , height h
         , class (cssClass image.label)
-        , onClick (LabelChange image)
         ]
-        []
+        [ div []
+            [ img
+                [ src (imageUrl image.domain)
+                , width w
+                , height h
+                , class (cssClass image.label)
+                , onClick (LabelChange image)
+                ]
+                []
+            , viewLabel image.label
+            ]
+        ]
 
 
 cssClass : Maybe Label -> String
@@ -355,28 +410,23 @@ cssClass maybeLabel =
 
 
 -- adjust for now having css capabilities
-
-
-cssColor : Maybe Label -> String
-cssColor maybeLabel =
-    let
-        colors =
-            [ "red", "green", "blue", "yellow", "purple", "orange" ]
-
-        colorAtIndex i =
-            case LE.getAt i colors of
-                Just c ->
-                    c
-
-                Nothing ->
-                    "error_color_455023"
-    in
-    case maybeLabel of
-        Just l ->
-            "label-" ++ colorAtIndex l.index
-
-        _ ->
-            ""
+-- cssColor : Maybe Label -> String
+-- cssColor maybeLabel =
+--     let
+--         colors =
+--             [ "red", "green", "blue", "yellow", "purple", "orange" ]
+--         colorAtIndex i =
+--             case LE.getAt i colors of
+--                 Just c ->
+--                     c
+--                 Nothing ->
+--                     "error_color_455023"
+--     in
+--     case maybeLabel of
+--         Just l ->
+--             "label-" ++ colorAtIndex l.index
+--         _ ->
+--             ""
 
 
 viewImages : Int -> Int -> List Image -> List (Html Msg)
@@ -385,7 +435,13 @@ viewImages width height images =
 
 
 
+----------------------------------------------------------------------------------------------------------------------
+----------------------------------------------------------------------------------------------------------------------
+----------------------------------------------------------------------------------------------------------------------
 -- data
+----------------------------------------------------------------------------------------------------------------------
+----------------------------------------------------------------------------------------------------------------------
+----------------------------------------------------------------------------------------------------------------------
 
 
 someDomains : List String

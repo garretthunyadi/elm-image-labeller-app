@@ -1,12 +1,16 @@
 img {
-    margin: 12px;
-    padding: 12px;
+    margin: 2px;
+    padding: 4px;
 }
 
+/* .label {} */
+
 .label-0 {
+    color: white;
     background-color: blue;
 }
 .label-1 {
+    color: white;
     background-color: red;
 }
 .label-2 {
@@ -16,8 +20,10 @@ img {
     background-color: orange;
 }
 .label-4 {
+    color: white;
     background-color: purple;
 }
 .label-5 {
+    color: white;
     background-color: green;
 }

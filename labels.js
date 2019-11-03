@@ -4403,7 +4403,7 @@ var $elm$core$String$split = F2(
 var $author$project$Label$categoriesFrom = function (text) {
 	return A2($elm$core$String$split, '\n', text);
 };
-var $author$project$Label$defaultHeight = 80;
+var $author$project$Label$defaultHeight = 300;
 var $elm$core$Basics$add = _Basics_add;
 var $elm$core$List$foldl = F3(
 	function (func, acc, list) {
@@ -5451,6 +5451,9 @@ var $author$project$Label$maybeShowJsonLabels = function (model) {
 			]));
 };
 var $author$project$Label$ToggleLabelConfigSection = {$: 'ToggleLabelConfigSection'};
+var $author$project$Label$UpdateCategoriesFromCategoryTextArea = function (a) {
+	return {$: 'UpdateCategoriesFromCategoryTextArea', a: a};
+};
 var $elm$json$Json$Encode$string = _Json_wrap;
 var $elm$html$Html$Attributes$stringProperty = F2(
 	function (key, string) {
@@ -5460,28 +5463,6 @@ var $elm$html$Html$Attributes$stringProperty = F2(
 			$elm$json$Json$Encode$string(string));
 	});
 var $elm$html$Html$Attributes$class = $elm$html$Html$Attributes$stringProperty('className');
-var $elm$html$Html$span = _VirtualDom_node('span');
-var $author$project$Label$showLabelLegend = function (model) {
-	return A2(
-		$elm$html$Html$span,
-		_List_Nil,
-		_List_fromArray(
-			[
-				A2(
-				$elm$html$Html$span,
-				_List_fromArray(
-					[
-						$elm$html$Html$Attributes$class('label-0')
-					]),
-				_List_fromArray(
-					[
-						$elm$html$Html$text('label 0')
-					]))
-			]));
-};
-var $author$project$Label$UpdateCategoriesFromCategoryTextArea = function (a) {
-	return {$: 'UpdateCategoriesFromCategoryTextArea', a: a};
-};
 var $elm$html$Html$Attributes$cols = function (n) {
 	return A2(
 		_VirtualDom_attribute,
@@ -5527,10 +5508,11 @@ var $elm$html$Html$Attributes$rows = function (n) {
 		'rows',
 		$elm$core$String$fromInt(n));
 };
+var $elm$html$Html$span = _VirtualDom_node('span');
 var $elm$html$Html$textarea = _VirtualDom_node('textarea');
 var $elm$html$Html$Attributes$value = $elm$html$Html$Attributes$stringProperty('value');
-var $author$project$Label$viewLabelConfig = function (model) {
-	return A2(
+var $author$project$Label$maybeShowLabelConfig = function (model) {
+	var viewLabelConfig = A2(
 		$elm$html$Html$div,
 		_List_Nil,
 		_List_fromArray(
@@ -5546,8 +5528,23 @@ var $author$project$Label$viewLabelConfig = function (model) {
 					]),
 				_List_Nil)
 			]));
-};
-var $author$project$Label$maybeShowLabelConfig = function (model) {
+	var labelLegendFor = function (label) {
+		return A2(
+			$elm$html$Html$span,
+			_List_fromArray(
+				[
+					$elm$html$Html$Attributes$class(
+					'label-' + $elm$core$String$fromInt(label.index))
+				]),
+			_List_fromArray(
+				[
+					$elm$html$Html$text(label.name)
+				]));
+	};
+	var showLabelLegend = A2(
+		$elm$html$Html$span,
+		_List_Nil,
+		A2($elm$core$List$map, labelLegendFor, model.labels));
 	return model.showLabelConfig ? A2(
 		$elm$html$Html$div,
 		_List_Nil,
@@ -5563,8 +5560,8 @@ var $author$project$Label$maybeShowLabelConfig = function (model) {
 					[
 						$elm$html$Html$text('Hide Label Configuration')
 					])),
-				$author$project$Label$showLabelLegend(model),
-				$author$project$Label$viewLabelConfig(model)
+				showLabelLegend,
+				viewLabelConfig
 			])) : A2(
 		$elm$html$Html$div,
 		_List_Nil,
@@ -5580,7 +5577,7 @@ var $author$project$Label$maybeShowLabelConfig = function (model) {
 					[
 						$elm$html$Html$text('Label Configuration')
 					])),
-				$author$project$Label$showLabelLegend(model)
+				showLabelLegend
 			]));
 };
 var $author$project$Label$LabelChange = function (a) {
@@ -5615,20 +5612,51 @@ var $elm$html$Html$Attributes$width = function (n) {
 };
 var $author$project$Label$viewImage = F3(
 	function (w, h, image) {
+		var viewLabel = function (mLabel) {
+			if (mLabel.$ === 'Just') {
+				var l = mLabel.a;
+				return A2(
+					$elm$html$Html$span,
+					_List_fromArray(
+						[
+							$elm$html$Html$Attributes$class(
+							'label-' + $elm$core$String$fromInt(l.index))
+						]),
+					_List_fromArray(
+						[
+							$elm$html$Html$text(l.name)
+						]));
+			} else {
+				return A2($elm$html$Html$span, _List_Nil, _List_Nil);
+			}
+		};
 		return A2(
-			$elm$html$Html$img,
+			$elm$html$Html$span,
 			_List_fromArray(
 				[
-					$elm$html$Html$Attributes$src(
-					$author$project$Label$imageUrl(image.domain)),
 					$elm$html$Html$Attributes$width(w),
 					$elm$html$Html$Attributes$height(h),
 					$elm$html$Html$Attributes$class(
-					$author$project$Label$cssClass(image.label)),
-					$elm$html$Html$Events$onClick(
-					$author$project$Label$LabelChange(image))
+					$author$project$Label$cssClass(image.label))
 				]),
-			_List_Nil);
+			_List_fromArray(
+				[
+					A2(
+					$elm$html$Html$img,
+					_List_fromArray(
+						[
+							$elm$html$Html$Attributes$src(
+							$author$project$Label$imageUrl(image.domain)),
+							$elm$html$Html$Attributes$width(w),
+							$elm$html$Html$Attributes$height(h),
+							$elm$html$Html$Attributes$class(
+							$author$project$Label$cssClass(image.label)),
+							$elm$html$Html$Events$onClick(
+							$author$project$Label$LabelChange(image))
+						]),
+					_List_Nil),
+					viewLabel(image.label)
+				]));
 	});
 var $author$project$Label$viewImages = F3(
 	function (width, height, images) {
