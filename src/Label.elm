@@ -384,17 +384,15 @@ viewImage w h image =
         , height h
         , class (cssClass image.label)
         ]
-        [ div []
-            [ img
-                [ src (imageUrl image.domain)
-                , width w
-                , height h
-                , class (cssClass image.label)
-                , onClick (LabelChange image)
-                ]
-                []
-            , viewLabel image.label
+        [ img
+            [ src (imageUrl image.domain)
+            , width w
+            , height h
+            , class (cssClass image.label)
+            , onClick (LabelChange image)
             ]
+            []
+        , viewLabel image.label
         ]
 
 
