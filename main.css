@@ -1,0 +1,23 @@
+img {
+    margin: 12px;
+    padding: 12px;
+}
+
+.label-0 {
+    background-color: blue;
+}
+.label-1 {
+    background-color: red;
+}
+.label-2 {
+    background-color: yellow;
+}
+.label-3 {
+    background-color: orange;
+}
+.label-4 {
+    background-color: purple;
+}
+.label-5 {
+    background-color: green;
+}

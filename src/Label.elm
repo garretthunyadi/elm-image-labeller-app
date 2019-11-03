@@ -32,7 +32,7 @@ Approach 3: Manipulating labels, referencing only S3, generating a script to be 
 -- import Bool.Extra
 
 import Browser
-import Html exposing (Html, button, div, img, pre, text, textarea)
+import Html exposing (Html, button, div, img, pre, span, text, textarea)
 import Html.Attributes exposing (class, cols, height, rows, src, value, width)
 import Html.Events exposing (onClick, onInput)
 import List exposing (map)
@@ -309,13 +309,22 @@ maybeShowLabelConfig model =
             [ button
                 [ onClick ToggleLabelConfigSection ]
                 [ text "Hide Label Configuration" ]
+            , showLabelLegend model
             , viewLabelConfig model
             ]
 
     else
         div []
             [ button [ onClick ToggleLabelConfigSection ] [ text "Label Configuration" ]
+            , showLabelLegend model
             ]
+
+
+showLabelLegend : Model -> Html Msg
+showLabelLegend model =
+    span []
+        [ span [ class "label-0" ] [ text "label 0" ]
+        ]
 
 
 viewLabelConfig : Model -> Html Msg
@@ -323,7 +332,7 @@ viewLabelConfig model =
     -- div [] (map (\l -> viewLabelEditor l) model.labels)
     -- div [] (map (\l -> text l.name) ls)
     div []
-        [ textarea [ cols 40, rows 6, value model.rawCategoryText, onInput UpdateCategoriesFromCategoryTextArea ] []
+        [ textarea [ cols 30, rows 6, value model.rawCategoryText, onInput UpdateCategoriesFromCategoryTextArea ] []
         ]
 
 
