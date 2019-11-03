@@ -5293,10 +5293,6 @@ var $author$project$Label$update = F2(
 				return _Utils_update(
 					model,
 					{imageDims: model.imageDims - 50});
-			case 'Reset':
-				return _Utils_update(
-					model,
-					{imageDims: $author$project$Label$defaultHeight});
 			case 'LabelChange':
 				var image = msg.a;
 				var updateImage = function (i) {
@@ -5337,7 +5333,6 @@ var $author$project$Label$update = F2(
 	});
 var $author$project$Label$Decrement = {$: 'Decrement'};
 var $author$project$Label$Increment = {$: 'Increment'};
-var $author$project$Label$Reset = {$: 'Reset'};
 var $elm$html$Html$button = _VirtualDom_node('button');
 var $elm$html$Html$div = _VirtualDom_node('div');
 var $elm$html$Html$hr = _VirtualDom_node('hr');
@@ -5456,6 +5451,34 @@ var $author$project$Label$maybeShowJsonLabels = function (model) {
 			]));
 };
 var $author$project$Label$ToggleLabelConfigSection = {$: 'ToggleLabelConfigSection'};
+var $elm$json$Json$Encode$string = _Json_wrap;
+var $elm$html$Html$Attributes$stringProperty = F2(
+	function (key, string) {
+		return A2(
+			_VirtualDom_property,
+			key,
+			$elm$json$Json$Encode$string(string));
+	});
+var $elm$html$Html$Attributes$class = $elm$html$Html$Attributes$stringProperty('className');
+var $elm$html$Html$span = _VirtualDom_node('span');
+var $author$project$Label$showLabelLegend = function (model) {
+	return A2(
+		$elm$html$Html$span,
+		_List_Nil,
+		_List_fromArray(
+			[
+				A2(
+				$elm$html$Html$span,
+				_List_fromArray(
+					[
+						$elm$html$Html$Attributes$class('label-0')
+					]),
+				_List_fromArray(
+					[
+						$elm$html$Html$text('label 0')
+					]))
+			]));
+};
 var $author$project$Label$UpdateCategoriesFromCategoryTextArea = function (a) {
 	return {$: 'UpdateCategoriesFromCategoryTextArea', a: a};
 };
@@ -5505,14 +5528,6 @@ var $elm$html$Html$Attributes$rows = function (n) {
 		$elm$core$String$fromInt(n));
 };
 var $elm$html$Html$textarea = _VirtualDom_node('textarea');
-var $elm$json$Json$Encode$string = _Json_wrap;
-var $elm$html$Html$Attributes$stringProperty = F2(
-	function (key, string) {
-		return A2(
-			_VirtualDom_property,
-			key,
-			$elm$json$Json$Encode$string(string));
-	});
 var $elm$html$Html$Attributes$value = $elm$html$Html$Attributes$stringProperty('value');
 var $author$project$Label$viewLabelConfig = function (model) {
 	return A2(
@@ -5524,7 +5539,7 @@ var $author$project$Label$viewLabelConfig = function (model) {
 				$elm$html$Html$textarea,
 				_List_fromArray(
 					[
-						$elm$html$Html$Attributes$cols(40),
+						$elm$html$Html$Attributes$cols(30),
 						$elm$html$Html$Attributes$rows(6),
 						$elm$html$Html$Attributes$value(model.rawCategoryText),
 						$elm$html$Html$Events$onInput($author$project$Label$UpdateCategoriesFromCategoryTextArea)
@@ -5548,6 +5563,7 @@ var $author$project$Label$maybeShowLabelConfig = function (model) {
 					[
 						$elm$html$Html$text('Hide Label Configuration')
 					])),
+				$author$project$Label$showLabelLegend(model),
 				$author$project$Label$viewLabelConfig(model)
 			])) : A2(
 		$elm$html$Html$div,
@@ -5563,13 +5579,13 @@ var $author$project$Label$maybeShowLabelConfig = function (model) {
 				_List_fromArray(
 					[
 						$elm$html$Html$text('Label Configuration')
-					]))
+					])),
+				$author$project$Label$showLabelLegend(model)
 			]));
 };
 var $author$project$Label$LabelChange = function (a) {
 	return {$: 'LabelChange', a: a};
 };
-var $elm$html$Html$Attributes$class = $elm$html$Html$Attributes$stringProperty('className');
 var $author$project$Label$cssClass = function (maybeLabel) {
 	if (maybeLabel.$ === 'Just') {
 		var l = maybeLabel.a;
@@ -5647,16 +5663,6 @@ var $author$project$Label$view = function (model) {
 				_List_fromArray(
 					[
 						$elm$html$Html$text('+')
-					])),
-				A2(
-				$elm$html$Html$button,
-				_List_fromArray(
-					[
-						$elm$html$Html$Events$onClick($author$project$Label$Reset)
-					]),
-				_List_fromArray(
-					[
-						$elm$html$Html$text('reset')
 					])),
 				$elm$html$Html$text(model.flash),
 				A2($elm$html$Html$div, _List_Nil, _List_Nil),

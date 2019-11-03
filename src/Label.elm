@@ -145,7 +145,6 @@ init =
 type Msg
     = Increment
     | Decrement
-    | Reset
     | LabelChange Image
     | ToggleLabelConfigSection
     | ToggleJsonLinesSection
@@ -164,9 +163,6 @@ update msg model =
 
         Decrement ->
             { model | imageDims = model.imageDims - 50 }
-
-        Reset ->
-            { model | imageDims = defaultHeight }
 
         LabelChange image ->
             let
@@ -267,7 +263,6 @@ view model =
         [ div [] []
         , button [ onClick Decrement ] [ text "-" ]
         , button [ onClick Increment ] [ text "+" ]
-        , button [ onClick Reset ] [ text "reset" ]
 
         -- , div [] []
         , text model.flash
