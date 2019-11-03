@@ -3,27 +3,42 @@ img {
     padding: 4px;
 }
 
-/* .label {} */
+.label {
+}
 
 .label-0 {
     color: white;
-    background-color: blue;
+    background-color: rgb(30, 26, 110);
 }
 .label-1 {
     color: white;
-    background-color: red;
+    background-color: rgb(134, 129, 32);
 }
 .label-2 {
-    background-color: yellow;
+    color: white;
+    background-color: rgb(102, 27, 55);
 }
 .label-3 {
-    background-color: orange;
+    color: white;
+    background-color: rgb(51, 126, 29);
 }
 .label-4 {
     color: white;
-    background-color: purple;
+    background-color: rgb(106, 128, 99);
 }
 .label-5 {
     color: white;
-    background-color: green;
+    background-color: rgb(83, 69, 92);
+}
+.label-6 {
+    color: white;
+    background-color: rgb(32, 131, 124);
+}
+.label-7 {
+    color: white;
+    background-color: rgb(82, 88, 57);
+}
+.label-8 {
+    color: white;
+    background-color: rgb(145, 43, 73);
 }
