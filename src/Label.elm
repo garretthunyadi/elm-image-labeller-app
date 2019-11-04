@@ -1,8 +1,15 @@
-module Label exposing (Domain, main)
+module Label exposing (main)
 
 {-| Notes and Items to do
 
 [ ] Where do I get my input?
+work from local files and save label files
+
+    file input supports previous labels:
+    image_name, image_url, [class_name]
+
+    file output
+    image_name, image_url, class_name
 
 [ ] Color coding
 
@@ -32,11 +39,15 @@ Approach 3: Manipulating labels, referencing only S3, generating a script to be 
 -- import Bool.Extra
 
 import Browser
+import File exposing (File)
+import File.Download
+import File.Select
 import Html exposing (Html, button, div, img, pre, span, text, textarea)
 import Html.Attributes exposing (class, cols, height, rows, src, value, width)
 import Html.Events exposing (onClick, onInput)
 import List exposing (map)
 import List.Extra as LE
+import Task
 
 
 
@@ -50,11 +61,36 @@ defaultHeight =
 
 main : Program () Model Msg
 main =
-    Browser.sandbox { init = init, update = update, view = view }
+    Browser.element
+        { init = init
+        , update = update
+        , view = view
+        , subscriptions = subscriptions
+        }
 
 
 
+-- update : Msg -> Model -> ( Model, Cmd Msg )
+-- { init : #flags -> ( Model, Cmd Msg )#
+-- , subscriptions : Model -> Sub Msg
+-- , update : Msg -> Model -> #( Model, Cmd Msg )#
+-- , view : Model -> Html Msg
+
+
+subscriptions : Model -> Sub Msg
+subscriptions model =
+    -- TODO impl time to label the saved files
+    Sub.none
+
+
+
+----------------------------------------------------------------------------------------------------------------------
+----------------------------------------------------------------------------------------------------------------------
+----------------------------------------------------------------------------------------------------------------------
 -- model
+----------------------------------------------------------------------------------------------------------------------
+----------------------------------------------------------------------------------------------------------------------
+----------------------------------------------------------------------------------------------------------------------
 
 
 type alias Domain =
@@ -126,20 +162,50 @@ type alias Model =
     }
 
 
-init : Model
-init =
-    let
+
+-- init : Model
+-- init =
+--     let
+--         categoryText =
+--             "Bad\nOk\nGood"
+--     in
+--     { flash = ""
+--     , labels = makeLabels (categoriesFrom categoryText)
+--     , imageDims = defaultHeight
+--     , images = someImages
+--     , showLabelConfig = True
+--     , showJsonLines = True
+--     , rawCategoryText = categoryText
+--     }
+
+
+init : () -> ( Model, Cmd Msg )
+init _ =
+    ( let
         categoryText =
             "Bad\nOk\nGood"
-    in
-    { flash = ""
-    , labels = makeLabels (categoriesFrom categoryText)
-    , imageDims = defaultHeight
-    , images = someImages
-    , showLabelConfig = True
-    , showJsonLines = True
-    , rawCategoryText = categoryText
-    }
+      in
+      { flash = ""
+      , labels = makeLabels (categoriesFrom categoryText)
+      , imageDims = defaultHeight
+      , images = someImages
+      , showLabelConfig = True
+      , showJsonLines = True
+      , rawCategoryText = categoryText
+      }
+    , Cmd.none
+    )
+
+
+
+----------------------------------------------------------------------------------------------------------------------
+----------------------------------------------------------------------------------------------------------------------
+----------------------------------------------------------------------------------------------------------------------
+----------------------------------------------------------------------------------------------------------------------
+-- update
+----------------------------------------------------------------------------------------------------------------------
+----------------------------------------------------------------------------------------------------------------------
+----------------------------------------------------------------------------------------------------------------------
 
 
 type Msg
@@ -149,27 +215,27 @@ type Msg
     | ToggleLabelConfigSection
     | ToggleJsonLinesSection
     | UpdateCategoriesFromCategoryTextArea String
+    | SaveLabels
+    | LoadLabels
+    | LoadImageSet
+    | LoadDomains
+    | GotLabelFile File
+    | GotImageFile File
+    | GotDomainFile File
+    | SaveImageSet
+    | LabelFileLoaded String
+    | ImageFileLoaded String
+    | DomainFileLoaded String
 
 
-
-----------------------------------------------------------------------------------------------------------------------
-----------------------------------------------------------------------------------------------------------------------
-----------------------------------------------------------------------------------------------------------------------
-----------------------------------------------------------------------------------------------------------------------
--- controller
-----------------------------------------------------------------------------------------------------------------------
-----------------------------------------------------------------------------------------------------------------------
-----------------------------------------------------------------------------------------------------------------------
-
-
-update : Msg -> Model -> Model
+update : Msg -> Model -> ( Model, Cmd Msg )
 update msg model =
     case msg of
         Increment ->
-            { model | imageDims = model.imageDims + 50 }
+            ( { model | imageDims = model.imageDims + 50 }, Cmd.none )
 
         Decrement ->
-            { model | imageDims = model.imageDims - 50 }
+            ( { model | imageDims = model.imageDims - 50 }, Cmd.none )
 
         LabelChange image ->
             let
@@ -183,36 +249,103 @@ update msg model =
                 updatedImages =
                     List.map updateImage model.images
             in
-            { model
+            ( { model
                 | flash = image.domain ++ ": " ++ labelText image.label
                 , images = updatedImages
 
                 -- , jsonLabels = jsonLabels model.images
-            }
+              }
+            , Cmd.none
+            )
 
         ToggleJsonLinesSection ->
             let
                 newVal =
                     not model.showJsonLines
             in
-            { model | showJsonLines = newVal }
+            ( { model | showJsonLines = newVal }, Cmd.none )
 
         ToggleLabelConfigSection ->
             let
                 newVal =
                     not model.showLabelConfig
             in
-            { model | showLabelConfig = newVal }
+            ( { model | showLabelConfig = newVal }, Cmd.none )
 
         UpdateCategoriesFromCategoryTextArea categoryText ->
             let
                 cats =
                     categoriesFrom categoryText
             in
-            { model | flash = String.concat cats, labels = makeLabels cats, rawCategoryText = categoryText }
+            ( { model | flash = String.concat cats, labels = makeLabels cats, rawCategoryText = categoryText }, Cmd.none )
+
+        LoadLabels ->
+            ( model, loadLabels model )
+
+        LoadImageSet ->
+            ( model, loadImageSet model )
+
+        LoadDomains ->
+            ( model, loadDomains model )
+
+        SaveLabels ->
+            ( model, save model )
+
+        GotLabelFile file ->
+            ( model
+            , Task.perform LabelFileLoaded (File.toString file)
+            )
+
+        GotDomainFile file ->
+            ( model
+            , Task.perform DomainFileLoaded (File.toString file)
+            )
+
+        GotImageFile file ->
+            ( model
+            , Task.perform ImageFileLoaded (File.toString file)
+            )
+
+        ImageFileLoaded text ->
+            ( { model | images = imagesFromImageSetFileText text }
+            , Cmd.none
+            )
+
+        LabelFileLoaded text ->
+            ( { model | labels = labelsFromLabelFileText text }
+            , Cmd.none
+            )
+
+        DomainFileLoaded text ->
+            ( { model | images = imagesFromDomainFileText text }
+            , Cmd.none
+            )
+
+        SaveImageSet ->
+            ( model, saveImageSet model )
+
+
+imagesFromImageSetFileText : String -> List Image
+imagesFromImageSetFileText text =
+    -- TODO impl
+    someImages
+
+
+imagesFromDomainFileText : String -> List Image
+imagesFromDomainFileText text =
+    -- TODO impl
+    someImages
+
+
+labelsFromLabelFileText : String -> List Label
+labelsFromLabelFileText text =
+    -- TODO impl
+    []
 
 
 
+-- imagesFromImageFile2 : File -> List Image
+-- imagesFromImageFile2 file =
 -- case categoriesFrom categoryText of
 -- Just categories ->
 --     { model | labels = makeLabels categories }
@@ -289,6 +422,14 @@ view model =
         [ div [] []
         , button [ onClick Decrement ] [ text "-" ]
         , button [ onClick Increment ] [ text "+" ]
+        , text "     |     "
+        , button [ onClick SaveLabels ] [ text "Save Labels" ]
+        , button [ onClick LoadLabels ] [ text "Load Labels" ]
+        , text "     |     "
+        , button [ onClick SaveImageSet ] [ text "Save Image Set" ]
+        , button [ onClick LoadImageSet ] [ text "Load Image Set" ]
+        , text "     |     "
+        , button [ onClick LoadDomains ] [ text "Load Domains List" ]
 
         -- , div [] []
         , text model.flash
@@ -491,3 +632,40 @@ dumpJsonLabelsAsPre : List Image -> Html Msg
 dumpJsonLabelsAsPre images =
     pre []
         [ text (jsonLabels images |> String.concat) ]
+
+
+save : Model -> Cmd Msg
+save model =
+    jsonLabels model.images
+        |> String.concat
+        |> download
+
+
+loadLabels : Model -> Cmd Msg
+loadLabels model =
+    File.Select.file [ "*/" ] GotLabelFile
+
+
+loadImageSet : Model -> Cmd Msg
+loadImageSet model =
+    File.Select.file [ "*/images" ] GotImageFile
+
+
+loadDomains : Model -> Cmd Msg
+loadDomains model =
+    File.Select.file [ "*/list" ] GotDomainFile
+
+
+saveImageSet : Model -> Cmd Msg
+saveImageSet model =
+    let
+        imageSetTextFromImages : List Image -> String
+        imageSetTextFromImages images =
+            map (\image -> image.domain ++ "," ++ imageUrl image.domain ++ "\n") images |> String.concat
+    in
+    File.Download.string "some.images" "text/csv" (imageSetTextFromImages model.images)
+
+
+download : String -> Cmd msg
+download text =
+    File.Download.string "some.labels" "text/csv" text
