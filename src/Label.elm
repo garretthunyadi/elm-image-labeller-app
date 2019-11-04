@@ -11,16 +11,9 @@ work from local files and save label files
     file output
     image_name, image_url, class_name
 
-[ ] Color coding
-
 [ ] Bug: Label names should always be generated dynamically, in case the schema changes.
 Or should it?
-
-[ ] Configure Labels
-[ ] Show/Hide Label Configuration section
-[ ] Add a list for labels containing the text labels
 [ ] Add logic to set Label.index on any update of the list
-[-] OOS: Add a color selector
 
 [] Need to determine if I am manipulating files directly (as orig thought) or just labels pointing to S3 images
 
@@ -31,6 +24,11 @@ Approach 1: Manipulating labels, referencing only S3, generating JSON lines only
 Approach 2: Manipulating labels, referencing only S3, generating .lst file
 Approach 3: Manipulating labels, referencing only S3, generating a script to be run, or a command to a backend server
 
+[-] Add a list for labels containing the text labels
+[-] OOS: Add a color selector
+[x] Show/Hide Label Configuration section
+[/] Configure Labels
+[x] Color coding
 [x] Show/Hide JSON Lines output
 [x] Bug: Need to cycle through having no label
 
@@ -39,6 +37,7 @@ Approach 3: Manipulating labels, referencing only S3, generating a script to be 
 -- import Bool.Extra
 
 import Browser
+import Debug exposing (log)
 import File exposing (File)
 import File.Download
 import File.Select
@@ -67,14 +66,6 @@ main =
         , view = view
         , subscriptions = subscriptions
         }
-
-
-
--- update : Msg -> Model -> ( Model, Cmd Msg )
--- { init : #flags -> ( Model, Cmd Msg )#
--- , subscriptions : Model -> Sub Msg
--- , update : Msg -> Model -> #( Model, Cmd Msg )#
--- , view : Model -> Html Msg
 
 
 subscriptions : Model -> Sub Msg
@@ -333,8 +324,20 @@ imagesFromImageSetFileText text =
 
 imagesFromDomainFileText : String -> List Image
 imagesFromDomainFileText text =
-    -- TODO impl
-    someImages
+    let
+        domainFromString : String -> Maybe Domain
+        domainFromString s =
+            -- TODO validate string? Currently any line will be recognized as a valid domain
+            -- should return Maybe String and then filter the results
+            --
+            -- if this is a csv, assume that the first row is the name/domain
+            LE.getAt 0 (String.split "," s)
+
+        domains =
+            String.split "\n" text
+                |> List.filterMap domainFromString
+    in
+    List.map (\d -> makeImage d) domains
 
 
 labelsFromLabelFileText : String -> List Label
@@ -585,33 +588,37 @@ viewImages width height images =
 
 someDomains : List String
 someDomains =
-    [ "deavervineyards.com"
-    , "douglashatch.com"
-    , "dk.com.pk"
-    , "brainfart55.com"
-    , "bereaworldmission.org"
-    , "anywherefest.com"
-    , "dadpowered.com"
-    , "beautifulworld.uk.com"
-    , "boatrax.com"
-    , "denigris1889.com"
-    , "copperzapper.com"
-    , "bwavejewelry.com"
-    , "cassavasite.com"
-    , "artofmagic.com"
-    , "bbblanc.com"
-    , "dynatecmigrate.info"
-    , "conceptfireplace.com"
-    , "bronzehorsemanbooks.com"
-    , "cp-e.com"
-    , "artcellarhouston.com"
-    , "chefsgarden.net"
-    , "desishops.com"
-    , "cheapjiujitsu.com"
-    , "crimsonlotusteas.com"
-    , "cumbrestoltec.org"
-    , "daytopraise.com"
-    ]
+    []
+
+
+
+-- [ "deavervineyards.com"
+-- , "douglashatch.com"
+-- , "dk.com.pk"
+-- , "brainfart55.com"
+-- , "bereaworldmission.org"
+-- , "anywherefest.com"
+-- , "dadpowered.com"
+-- , "beautifulworld.uk.com"
+-- , "boatrax.com"
+-- , "denigris1889.com"
+-- , "copperzapper.com"
+-- , "bwavejewelry.com"
+-- , "cassavasite.com"
+-- , "artofmagic.com"
+-- , "bbblanc.com"
+-- , "dynatecmigrate.info"
+-- , "conceptfireplace.com"
+-- , "bronzehorsemanbooks.com"
+-- , "cp-e.com"
+-- , "artcellarhouston.com"
+-- , "chefsgarden.net"
+-- , "desishops.com"
+-- , "cheapjiujitsu.com"
+-- , "crimsonlotusteas.com"
+-- , "cumbrestoltec.org"
+-- , "daytopraise.com"
+-- ]
 
 
 someImages : List Image
@@ -668,4 +675,4 @@ saveImageSet model =
 
 download : String -> Cmd msg
 download text =
-    File.Download.string "some.labels" "text/csv" text
+    File.Download.string "some_labels.csv" "text/csv" text
