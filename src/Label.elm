@@ -303,7 +303,12 @@ update msg model =
             )
 
         LabelFileLoaded text ->
-            ( { model | labels = labelsFromLabelFileText text }
+            let
+                -- domainsAndMaybeLabels =
+                ( images, labels ) =
+                    imagesAndLabelsFromTextFile text
+            in
+            ( { model | labels = labels, images = images }
             , Cmd.none
             )
 
@@ -340,13 +345,91 @@ imagesFromDomainFileText text =
     List.map (\d -> makeImage d) domains
 
 
-labelsFromLabelFileText : String -> List Label
-labelsFromLabelFileText text =
-    -- TODO impl
-    []
+imagesAndLabelsFromTextFile : String -> ( List Image, List Label )
+imagesAndLabelsFromTextFile text =
+    let
+        images =
+            List.map (\( d, ml ) -> makeImage d) domainsAndMaybeLabels
+
+        labels =
+            List.filterMap (\( d, ml ) -> ml) domainsAndMaybeLabels
+
+        domainsAndMaybeLabels =
+            domainsAndMaybeLabelsFromFileText
+
+        domainsAndMaybeLabelsFromFileText : List ( Domain, Maybe Label )
+        domainsAndMaybeLabelsFromFileText =
+            String.split "\n" text |> List.filterMap mDomainAndMLabelFromString
+
+        mDomainAndMLabelFromString : String -> Maybe ( Domain, Maybe Label )
+        mDomainAndMLabelFromString line =
+            let
+                split =
+                    String.split "," line
+            in
+            case LE.getAt 0 split of
+                Just s ->
+                    let
+                        d =
+                            String.trim s
+
+                        ml =
+                            case LE.getAt 1 split of
+                                Just s2 ->
+                                    -- TODO: setting zero index... remove indexes if possible
+                                    -- { index = 0, name = s2 }
+                                    Just (Label s2 0)
+
+                                Nothing ->
+                                    Nothing
+                    in
+                    Just ( d, ml )
+
+                Nothing ->
+                    Nothing
+
+        -- let
+        -- domainFromString : String -> Maybe Domain
+        -- domainFromString s =
+        --     -- TODO validate string? Currently any line will be recognized as a valid domain
+        --     -- should return Maybe String and then filter the results
+        --     --
+        --     -- if this is a csv, assume that the first row is the name/domain
+        --     LE.getAt 0 (String.split "," s)
+        -- domains =
+        --     String.split "\n" text
+        --         |> List.filterMap domainFromString
+        -- in
+        -- List.map (\d -> makeImage d) domains
+    in
+    ( images, labels )
 
 
 
+-- labelsFromLabelFileText : String -> List Label
+-- labelsFromLabelFileText text =
+--     let
+--         -- String (lines) -> List Maybe (Domain, Maybe Label)
+--         domainAndLabelTextFromString : String -> ( Maybe Domain, Maybe String )
+--         domainAndLabelTextFromString s =
+--             -- TODO validate string? Currently any line will be recognized as a valid domain
+--             --
+--             -- if this is a csv, assume that the first row is the name/domain
+--             let
+--                 parts =
+--                     String.split "," s
+--             in
+--             ( LE.getAt 0 parts, LE.getAt 1 parts )
+--         -- mDomainAndMLabelStringTuples : List Maybe ( Domain, Maybe String )
+--         -- mDomainAndMLabelStringTuples =
+--         --     String.split "\n" text
+--         --         |> List.filterMap domainAndLabelTextFromString
+--     in
+--     List.map (\( md, ms ) -> maybeMakeLabel md ms) domainAndLabelTextFromString
+-- maybeMakeLabel : Maybe Domain -> Maybe String -> Maybe Label
+-- maybeMakeLabel mDomain mString =
+--     --TODO: impl
+--     Nothing
 -- imagesFromImageFile2 : File -> List Image
 -- imagesFromImageFile2 file =
 -- case categoriesFrom categoryText of
