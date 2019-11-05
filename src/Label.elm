@@ -35,9 +35,9 @@ Approach 3: Manipulating labels, referencing only S3, generating a script to be 
 -}
 
 -- import Bool.Extra
+-- import Debug exposing (log)
 
 import Browser
-import Debug exposing (log)
 import File exposing (File)
 import File.Download
 import File.Select
@@ -104,12 +104,14 @@ imagesWithLabels images =
     let
         maybeLabel : Image -> Maybe ( Image, Label )
         maybeLabel image =
-            case image.label of
-                Just l ->
-                    Just ( image, l )
+            image.label
+                |> Maybe.andThen (\l -> Just ( image, l ))
 
-                Nothing ->
-                    Nothing
+        -- case image.label of
+        --     Just l ->
+        --         Just ( image, l )
+        --     Nothing ->
+        --         Nothing
     in
     List.filterMap maybeLabel images
 
@@ -127,6 +129,17 @@ jsonLineFor image label =
 jsonLabels : List Image -> List String
 jsonLabels images =
     map (\( i, l ) -> jsonLineFor i l) (imagesWithLabels images)
+
+
+csvLineFor : Image -> Label -> String
+csvLineFor image label =
+    -- image.domain ++ "," ++ label.name ++ "," ++ imageUrl image.domain ++ "\n"
+    image.domain ++ "," ++ label.name ++ "\n"
+
+
+csvLabels : List Image -> List String
+csvLabels images =
+    map (\( i, l ) -> csvLineFor i l) (imagesWithLabels images)
 
 
 type alias Image =
@@ -149,40 +162,17 @@ type alias Model =
     , images : List Image
     , showLabelConfig : Bool
     , showJsonLines : Bool
-    , rawCategoryText : String
     }
-
-
-
--- init : Model
--- init =
---     let
---         categoryText =
---             "Bad\nOk\nGood"
---     in
---     { flash = ""
---     , labels = makeLabels (categoriesFrom categoryText)
---     , imageDims = defaultHeight
---     , images = someImages
---     , showLabelConfig = True
---     , showJsonLines = True
---     , rawCategoryText = categoryText
---     }
 
 
 init : () -> ( Model, Cmd Msg )
 init _ =
-    ( let
-        categoryText =
-            "Bad\nOk\nGood"
-      in
-      { flash = ""
-      , labels = makeLabels (categoriesFrom categoryText)
+    ( { flash = ""
+      , labels = makeLabels (categoriesFrom "Bad\nOk\nGood")
       , imageDims = defaultHeight
       , images = someImages
       , showLabelConfig = True
       , showJsonLines = True
-      , rawCategoryText = categoryText
       }
     , Cmd.none
     )
@@ -207,6 +197,7 @@ type Msg
     | ToggleJsonLinesSection
     | UpdateCategoriesFromCategoryTextArea String
     | SaveLabels
+    | SaveLabelsAsJsonLines
     | LoadLabels
     | LoadImageSet
     | LoadDomains
@@ -268,19 +259,22 @@ update msg model =
                 cats =
                     categoriesFrom categoryText
             in
-            ( { model | flash = String.concat cats, labels = makeLabels cats, rawCategoryText = categoryText }, Cmd.none )
+            ( { model | flash = String.concat cats, labels = makeLabels cats }, Cmd.none )
 
         LoadLabels ->
-            ( model, loadLabels model )
+            ( model, File.Select.file [ "*/" ] GotLabelFile )
 
         LoadImageSet ->
-            ( model, loadImageSet model )
+            ( model, File.Select.file [ "*/images" ] GotImageFile )
 
         LoadDomains ->
-            ( model, loadDomains model )
+            ( model, File.Select.file [ "*/list" ] GotDomainFile )
 
         SaveLabels ->
-            ( model, save model )
+            ( model, saveLabels model )
+
+        SaveLabelsAsJsonLines ->
+            ( model, saveLabelsAsJsonLines model )
 
         GotLabelFile file ->
             ( model
@@ -349,10 +343,11 @@ imagesAndLabelsFromTextFile : String -> ( List Image, List Label )
 imagesAndLabelsFromTextFile text =
     let
         images =
-            List.map (\( d, ml ) -> makeImage d) domainsAndMaybeLabels
+            List.map (\( d, ml ) -> Image d ml) domainsAndMaybeLabels
 
         labels =
-            List.filterMap (\( d, ml ) -> ml) domainsAndMaybeLabels
+            List.filterMap (\( _, ml ) -> ml) domainsAndMaybeLabels
+                |> LE.uniqueBy (\l -> l.name)
 
         domainsAndMaybeLabels =
             domainsAndMaybeLabelsFromFileText
@@ -367,76 +362,25 @@ imagesAndLabelsFromTextFile text =
                 split =
                     String.split "," line
             in
-            case LE.getAt 0 split of
-                Just s ->
-                    let
-                        d =
-                            String.trim s
+            LE.getAt 0 split
+                |> Maybe.andThen
+                    (\s ->
+                        let
+                            d =
+                                String.trim s
 
-                        ml =
-                            case LE.getAt 1 split of
-                                Just s2 ->
-                                    -- TODO: setting zero index... remove indexes if possible
-                                    -- { index = 0, name = s2 }
-                                    Just (Label s2 0)
-
-                                Nothing ->
-                                    Nothing
-                    in
-                    Just ( d, ml )
-
-                Nothing ->
-                    Nothing
-
-        -- let
-        -- domainFromString : String -> Maybe Domain
-        -- domainFromString s =
-        --     -- TODO validate string? Currently any line will be recognized as a valid domain
-        --     -- should return Maybe String and then filter the results
-        --     --
-        --     -- if this is a csv, assume that the first row is the name/domain
-        --     LE.getAt 0 (String.split "," s)
-        -- domains =
-        --     String.split "\n" text
-        --         |> List.filterMap domainFromString
-        -- in
-        -- List.map (\d -> makeImage d) domains
+                            ml =
+                                LE.getAt 1 split
+                                    |> Maybe.andThen
+                                        --         -- TODO: setting zero index... remove indexes if possible
+                                        (\s2 ->
+                                            Just (Label s2 0)
+                                        )
+                        in
+                        Just ( d, ml )
+                    )
     in
     ( images, labels )
-
-
-
--- labelsFromLabelFileText : String -> List Label
--- labelsFromLabelFileText text =
---     let
---         -- String (lines) -> List Maybe (Domain, Maybe Label)
---         domainAndLabelTextFromString : String -> ( Maybe Domain, Maybe String )
---         domainAndLabelTextFromString s =
---             -- TODO validate string? Currently any line will be recognized as a valid domain
---             --
---             -- if this is a csv, assume that the first row is the name/domain
---             let
---                 parts =
---                     String.split "," s
---             in
---             ( LE.getAt 0 parts, LE.getAt 1 parts )
---         -- mDomainAndMLabelStringTuples : List Maybe ( Domain, Maybe String )
---         -- mDomainAndMLabelStringTuples =
---         --     String.split "\n" text
---         --         |> List.filterMap domainAndLabelTextFromString
---     in
---     List.map (\( md, ms ) -> maybeMakeLabel md ms) domainAndLabelTextFromString
--- maybeMakeLabel : Maybe Domain -> Maybe String -> Maybe Label
--- maybeMakeLabel mDomain mString =
---     --TODO: impl
---     Nothing
--- imagesFromImageFile2 : File -> List Image
--- imagesFromImageFile2 file =
--- case categoriesFrom categoryText of
--- Just categories ->
---     { model | labels = makeLabels categories }
--- Nothing ->
---     { model | flash = "INVALID CATEGORY TEXT" }
 
 
 categoriesFrom : String -> List String
@@ -509,8 +453,9 @@ view model =
         , button [ onClick Decrement ] [ text "-" ]
         , button [ onClick Increment ] [ text "+" ]
         , text "     |     "
-        , button [ onClick SaveLabels ] [ text "Save Labels" ]
         , button [ onClick LoadLabels ] [ text "Load Labels" ]
+        , button [ onClick SaveLabels ] [ text "Save Labels" ]
+        , button [ onClick SaveLabelsAsJsonLines ] [ text "Save Labels As JSON Lines" ]
         , text "     |     "
         , button [ onClick SaveImageSet ] [ text "Save Image Set" ]
         , button [ onClick LoadImageSet ] [ text "Load Image Set" ]
@@ -571,8 +516,12 @@ maybeShowLabelConfig model =
         -- ]
         viewLabelConfig : Html Msg
         viewLabelConfig =
+            let
+                rawCategoryText =
+                    String.join "\n" (List.map (\l -> l.name) model.labels)
+            in
             div []
-                [ textarea [ cols 30, rows 6, value model.rawCategoryText, onInput UpdateCategoriesFromCategoryTextArea ] []
+                [ textarea [ cols 30, rows 6, value rawCategoryText, onInput UpdateCategoriesFromCategoryTextArea ] []
                 ]
     in
     if model.showLabelConfig then
@@ -724,26 +673,18 @@ dumpJsonLabelsAsPre images =
         [ text (jsonLabels images |> String.concat) ]
 
 
-save : Model -> Cmd Msg
-save model =
+saveLabels : Model -> Cmd Msg
+saveLabels model =
+    csvLabels model.images
+        |> String.concat
+        |> saveAsCsvFile "labels"
+
+
+saveLabelsAsJsonLines : Model -> Cmd Msg
+saveLabelsAsJsonLines model =
     jsonLabels model.images
         |> String.concat
-        |> download
-
-
-loadLabels : Model -> Cmd Msg
-loadLabels model =
-    File.Select.file [ "*/" ] GotLabelFile
-
-
-loadImageSet : Model -> Cmd Msg
-loadImageSet model =
-    File.Select.file [ "*/images" ] GotImageFile
-
-
-loadDomains : Model -> Cmd Msg
-loadDomains model =
-    File.Select.file [ "*/list" ] GotDomainFile
+        |> saveAsJsonFile "labels"
 
 
 saveImageSet : Model -> Cmd Msg
@@ -756,6 +697,11 @@ saveImageSet model =
     File.Download.string "some.images" "text/csv" (imageSetTextFromImages model.images)
 
 
-download : String -> Cmd msg
-download text =
-    File.Download.string "some_labels.csv" "text/csv" text
+saveAsCsvFile : String -> String -> Cmd msg
+saveAsCsvFile base_filename text =
+    File.Download.string (base_filename ++ ".csv") "text/csv" text
+
+
+saveAsJsonFile : String -> String -> Cmd msg
+saveAsJsonFile base_filename text =
+    File.Download.string (base_filename ++ ".json") "text/json" text
