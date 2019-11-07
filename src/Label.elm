@@ -174,6 +174,8 @@ type alias Model =
     , baseFilename : String
     , timeZone : Time.Zone
     , time : Time.Posix
+    , clickCount : Int
+    , autosaveAfterNClicks : Int
     }
 
 
@@ -188,6 +190,8 @@ init _ =
       , baseFilename = ""
       , time = Time.millisToPosix 0
       , timeZone = Time.utc
+      , clickCount = 1
+      , autosaveAfterNClicks = 100
       }
     , Task.perform AdjustTimeZone Time.here
     )
@@ -256,9 +260,17 @@ update msg model =
 
                 updatedImages =
                     List.map updateImage model.images
+
+                -- cmd =
+                --     -- autosave every N label clicks
+                --     if modBy model.clickCount model.autosaveAfterNClicks == model.autosaveAfterNClicks then
+                --         saveImageSet model
+                --     else
+                --         Cmd.none
             in
             ( { model
                 | flash = image.domain ++ ": " ++ labelText image.label
+                , clickCount = model.clickCount + 1
                 , images = updatedImages
 
                 -- , jsonLabels = jsonLabels model.images
@@ -755,7 +767,7 @@ saveImageSet model =
             List.map lineFor model.images |> String.join "\n"
 
         filename =
-            model.baseFilename ++ "-" ++ timestamp model.timeZone model.time ++ ".images.csv"
+            model.baseFilename ++ "_images.csv"
     in
     -- let
     --     imageSetTextFromImages : List Image -> String
