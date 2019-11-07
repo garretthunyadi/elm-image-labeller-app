@@ -2,6 +2,17 @@ module Label exposing (main)
 
 {-| Notes and Items to do
 
+Maybe.map and Maybe.andThen
+map is for Maybe->Maybe,
+andThen is for Maybe a -> a
+<https://thoughtbot.com/blog/maybe-mechanics>
+
+[] Starting workflow
+
+1.  Load images in batches, sans labels as a label set or as domains
+2.  Save them as batches periodically, opening and closing as necessary
+      - I won't be able to autosave, as the user has to save
+
 [ ] Where do I get my input?
 work from local files and save label files
 
@@ -35,9 +46,9 @@ Approach 3: Manipulating labels, referencing only S3, generating a script to be 
 -}
 
 -- import Bool.Extra
--- import Debug exposing (log)
 
 import Browser
+import Debug exposing (log)
 import File exposing (File)
 import File.Download
 import File.Select
@@ -47,6 +58,7 @@ import Html.Events exposing (onClick, onInput)
 import List exposing (map)
 import List.Extra as LE
 import Task
+import Time
 
 
 
@@ -70,8 +82,7 @@ main =
 
 subscriptions : Model -> Sub Msg
 subscriptions model =
-    -- TODO impl time to label the saved files
-    Sub.none
+    Time.every 1000 Tick
 
 
 
@@ -99,6 +110,10 @@ makeLabels strings =
     List.map2 (\index name -> { index = index, name = name }) (List.range 0 (List.length strings)) strings
 
 
+
+-- return only the images that are labeles
+
+
 imagesWithLabels : List Image -> List ( Image, Label )
 imagesWithLabels images =
     let
@@ -106,12 +121,6 @@ imagesWithLabels images =
         maybeLabel image =
             image.label
                 |> Maybe.andThen (\l -> Just ( image, l ))
-
-        -- case image.label of
-        --     Just l ->
-        --         Just ( image, l )
-        --     Nothing ->
-        --         Nothing
     in
     List.filterMap maybeLabel images
 
@@ -162,6 +171,9 @@ type alias Model =
     , images : List Image
     , showLabelConfig : Bool
     , showJsonLines : Bool
+    , baseFilename : String
+    , timeZone : Time.Zone
+    , time : Time.Posix
     }
 
 
@@ -173,8 +185,11 @@ init _ =
       , images = someImages
       , showLabelConfig = True
       , showJsonLines = True
+      , baseFilename = ""
+      , time = Time.millisToPosix 0
+      , timeZone = Time.utc
       }
-    , Cmd.none
+    , Task.perform AdjustTimeZone Time.here
     )
 
 
@@ -208,10 +223,21 @@ type Msg
     | LabelFileLoaded String
     | ImageFileLoaded String
     | DomainFileLoaded String
+    | AdjustTimeZone Time.Zone
+    | Tick Time.Posix
 
 
 update : Msg -> Model -> ( Model, Cmd Msg )
 update msg model =
+    let
+        updateFilename : File -> Model
+        updateFilename file =
+            let
+                baseFilename =
+                    filenameBase <| File.name file
+            in
+            { model | baseFilename = baseFilename, flash = baseFilename }
+    in
     case msg of
         Increment ->
             ( { model | imageDims = model.imageDims + 50 }, Cmd.none )
@@ -264,36 +290,19 @@ update msg model =
         LoadLabels ->
             ( model, File.Select.file [ "*/" ] GotLabelFile )
 
-        LoadImageSet ->
-            ( model, File.Select.file [ "*/images" ] GotImageFile )
-
-        LoadDomains ->
-            ( model, File.Select.file [ "*/list" ] GotDomainFile )
-
-        SaveLabels ->
-            ( model, saveLabels model )
-
-        SaveLabelsAsJsonLines ->
-            ( model, saveLabelsAsJsonLines model )
-
-        GotLabelFile file ->
-            ( model
-            , Task.perform LabelFileLoaded (File.toString file)
-            )
-
         GotDomainFile file ->
-            ( model
+            ( updateFilename file
             , Task.perform DomainFileLoaded (File.toString file)
             )
 
-        GotImageFile file ->
-            ( model
-            , Task.perform ImageFileLoaded (File.toString file)
+        DomainFileLoaded text ->
+            ( { model | images = imagesFromDomainFileText text }
+            , Cmd.none
             )
 
-        ImageFileLoaded text ->
-            ( { model | images = imagesFromImageSetFileText text }
-            , Cmd.none
+        GotLabelFile file ->
+            ( updateFilename file
+            , Task.perform LabelFileLoaded (File.toString file)
             )
 
         LabelFileLoaded text ->
@@ -306,19 +315,55 @@ update msg model =
             , Cmd.none
             )
 
-        DomainFileLoaded text ->
-            ( { model | images = imagesFromDomainFileText text }
+        LoadImageSet ->
+            ( model, File.Select.file [ "*/images" ] GotImageFile )
+
+        GotImageFile file ->
+            ( updateFilename file
+            , Task.perform ImageFileLoaded (File.toString file)
+            )
+
+        ImageFileLoaded text ->
+            -- ( { model | images = imagesFromImageSetFileText text }
+            -- , Cmd.none
+            -- )
+            let
+                -- domainsAndMaybeLabels =
+                ( images, labels ) =
+                    imagesAndLabelsFromTextFile text
+            in
+            ( { model | labels = labels, images = images }
             , Cmd.none
             )
+
+        LoadDomains ->
+            ( model, File.Select.file [ "*/list" ] GotDomainFile )
+
+        SaveLabels ->
+            ( model, saveLabels model )
+
+        SaveLabelsAsJsonLines ->
+            ( model, saveLabelsAsJsonLines model )
 
         SaveImageSet ->
             ( model, saveImageSet model )
 
+        AdjustTimeZone newZone ->
+            ( { model | timeZone = newZone }
+            , Cmd.none
+            )
 
-imagesFromImageSetFileText : String -> List Image
-imagesFromImageSetFileText text =
-    -- TODO impl
-    someImages
+        Tick newTime ->
+            ( { model | time = newTime }
+            , Cmd.none
+            )
+
+
+
+-- imagesFromImageSetFileText : String -> List Image
+-- imagesFromImageSetFileText text =
+--     -- TODO impl
+--     someImages
 
 
 imagesFromDomainFileText : String -> List Image
@@ -464,6 +509,9 @@ view model =
 
         -- , div [] []
         , text model.flash
+
+        -- , div [] []
+        -- , span [] [ text timestamp ]
         , div [] []
         , maybeShowLabelConfig model
         , Html.hr [] []
@@ -677,31 +725,138 @@ saveLabels : Model -> Cmd Msg
 saveLabels model =
     csvLabels model.images
         |> String.concat
-        |> saveAsCsvFile "labels"
+        |> saveAsCsvFile (model.baseFilename ++ "-" ++ timestamp model.timeZone model.time ++ ".labels")
 
 
 saveLabelsAsJsonLines : Model -> Cmd Msg
 saveLabelsAsJsonLines model =
     jsonLabels model.images
         |> String.concat
-        |> saveAsJsonFile "labels"
+        |> saveAsJsonFile (model.baseFilename ++ "-" ++ timestamp model.timeZone model.time)
+
+
+
+-- domain, <label>
 
 
 saveImageSet : Model -> Cmd Msg
 saveImageSet model =
     let
-        imageSetTextFromImages : List Image -> String
-        imageSetTextFromImages images =
-            map (\image -> image.domain ++ "," ++ imageUrl image.domain ++ "\n") images |> String.concat
+        lineFor : Image -> String
+        lineFor image =
+            case image.label of
+                Just label ->
+                    image.domain ++ "," ++ label.name
+
+                Nothing ->
+                    image.domain
+
+        lines =
+            List.map lineFor model.images |> String.join "\n"
+
+        filename =
+            model.baseFilename ++ "-" ++ timestamp model.timeZone model.time ++ ".images.csv"
     in
-    File.Download.string "some.images" "text/csv" (imageSetTextFromImages model.images)
+    -- let
+    --     imageSetTextFromImages : List Image -> String
+    --     imageSetTextFromImages images =
+    --         map (\image -> image.domain ++ "," ++ imageUrl image.domain ++ "\n") images |> String.concat
+    -- in
+    -- File.Download.string (model.baseFilename ++ "-" ++ timestamp model.timeZone model.time ++ ".images.csv") "text/csv" (imageSetTextFromImages model.images)
+    File.Download.string filename "text/csv" lines
 
 
 saveAsCsvFile : String -> String -> Cmd msg
 saveAsCsvFile base_filename text =
-    File.Download.string (base_filename ++ ".csv") "text/csv" text
+    File.Download.string (base_filename ++ "-" ++ ".csv") "text/csv" text
 
 
 saveAsJsonFile : String -> String -> Cmd msg
 saveAsJsonFile base_filename text =
-    File.Download.string (base_filename ++ ".json") "text/json" text
+    File.Download.string (base_filename ++ "-" ++ ".json") "text/json" text
+
+
+filenameBase : String -> String
+filenameBase filename =
+    let
+        parts =
+            String.split "." filename
+    in
+    case List.length parts of
+        0 ->
+            ""
+
+        1 ->
+            LE.getAt 0 parts |> Maybe.withDefault ""
+
+        len ->
+            List.take (len - 1) parts
+                |> String.join "."
+
+
+
+-- Maybe.withDefault "" (LE.getAt 0 parts)
+
+
+toMonthString : Time.Month -> String
+toMonthString month =
+    case month of
+        Time.Jan ->
+            "Jan"
+
+        Time.Feb ->
+            "Feb"
+
+        Time.Mar ->
+            "Mar"
+
+        Time.Apr ->
+            "Apr"
+
+        Time.May ->
+            "May"
+
+        Time.Jun ->
+            "Jun"
+
+        Time.Jul ->
+            "Jul"
+
+        Time.Aug ->
+            "Aug"
+
+        Time.Sep ->
+            "Sep"
+
+        Time.Oct ->
+            "Oct"
+
+        Time.Nov ->
+            "Nov"
+
+        Time.Dec ->
+            "Dec"
+
+
+timestamp : Time.Zone -> Time.Posix -> String
+timestamp zone time =
+    let
+        year =
+            String.fromInt (Time.toYear zone time)
+
+        month =
+            toMonthString (Time.toMonth zone time)
+
+        day =
+            String.fromInt (Time.toDay zone time)
+
+        hour =
+            String.fromInt (Time.toHour zone time)
+
+        minute =
+            String.fromInt (Time.toMinute zone time)
+
+        second =
+            String.fromInt (Time.toSecond zone time)
+    in
+    month ++ "-" ++ day ++ "-" ++ year ++ "-" ++ hour ++ "-" ++ minute ++ "-" ++ second
