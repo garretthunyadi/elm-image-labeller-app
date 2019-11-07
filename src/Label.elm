@@ -497,19 +497,19 @@ view model =
         [ div [] []
         , button [ onClick Decrement ] [ text "-" ]
         , button [ onClick Increment ] [ text "+" ]
-        , text "     |     "
-        , button [ onClick LoadLabels ] [ text "Load Labels" ]
-        , button [ onClick SaveLabels ] [ text "Save Labels" ]
-        , button [ onClick SaveLabelsAsJsonLines ] [ text "Save Labels As JSON Lines" ]
+
+        -- , text "     |     "
+        -- , button [ onClick LoadLabels ] [ text "Load Labels" ]
+        -- , button [ onClick SaveLabels ] [ text "Save Labels" ]
+        -- , button [ onClick SaveLabelsAsJsonLines ] [ text "Save Labels As JSON Lines" ]
         , text "     |     "
         , button [ onClick SaveImageSet ] [ text "Save Image Set" ]
         , button [ onClick LoadImageSet ] [ text "Load Image Set" ]
-        , text "     |     "
-        , button [ onClick LoadDomains ] [ text "Load Domains List" ]
 
+        -- , text "     |     "
+        -- , button [ onClick LoadDomains ] [ text "Load Domains List" ]
         -- , div [] []
-        , text model.flash
-
+        -- , text model.flash
         -- , div [] []
         -- , span [] [ text timestamp ]
         , div [] []
@@ -522,8 +522,8 @@ view model =
         , div [] (viewImages model.imageDims model.imageDims model.images)
 
         -- , renderImageList model.imageDims model.imageDims ["aaa", "Bbb"]
-        , div [] []
-        , maybeShowJsonLabels model
+        -- , div [] []
+        -- , maybeShowJsonLabels model
         ]
 
 
